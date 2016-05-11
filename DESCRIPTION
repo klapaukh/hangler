@@ -1,0 +1,15 @@
+Package: hangler
+Title: Fourier shape analysis as per Hangle
+Version: 0.0.0.9000
+Authors@R: c(
+    person("Roman", "Klapaukh", email="", role=c("aut","cre")),
+    person("Katie", "Collins", email="", role=c("aut","cre")))
+BugReports: https://github.com/klapaukh/hangler/issues
+Description: This uses the algorithm of Haines and Crampton (2000) as 
+    implemented in Hangle. This computes fourier coeffiecients for
+    closed curves for morphometric analysis. 
+Depends: R (>=3.2.4)
+License: GPL-3
+LazyData: true
+Suggests: knitr
+VignetteBuilder: knitr

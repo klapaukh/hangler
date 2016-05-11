@@ -1,0 +1,102 @@
+---
+title: "The Hangle Algorithm"
+author: "Roman Klapaukh & Katie Collins"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Algorithm Explanation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+This vignette describes the implementation of the algorithm as implemented in this system. 
+This is intended as a reimplementation of the Hangle tool of 
+[Haines and Crampton (2000)](http://onlinelibrary.wiley.com/doi/10.1111/1475-4983.00148/abstract).
+The algorithm is taken entirely from their work and implemented in the R language.
+Any errors in this document or implementation come from our incomplete understanding. 
+
+## Input To The Algorithm
+
+The algorithm takes in a set of points that represent the outline of a closed shape. 
+Hangler will check if an outline is closed (the first and last points are the same), 
+and if it is remove one of the repeated points.
+
+
+## Algorithm Overview
+
+The algorith is a pipeline as follows:
+
+   1. Remove duplicated xy point that closes the curve if present
+   1. Smooth the input coordinates 
+   1. Estimate tangents to each coordinate
+   1. Compute a spline to model the tangents of the closed curve
+   1. Normalise the spline length to $2\pi$
+   1. Resample the spline to get 1024 (usually) points
+   1. Normalise the starting position and orientation by either:
+      * Normalisation by harmonics
+      * Normalisation by matching against all speciments
+   1. Perform an FFT on the points
+
+
+There are also helper functions to:
+
+   * Reconstruct the curve from fourier space harmonic coeeficients
+   * Draw a curve from its tangents
+   
+## Smoothing
+
+Smoothing is done by means of a weighed moving averages filter. This filter can be applied multiple times. 
+
+The formula to get a point's smooth location is:
+
+$$
+(x,y)_i^{new} = \frac{1}{4}(x,y)_{i-1}^{old} + \frac{1}{2}(x,y)_i^{old} + \frac{1}{4}(x,y)_{i+1}^{old}
+$$
+
+Note that since this is a closed curve, given points numbered $0..N,\ (x,y)_{-1} = (x,y)_{N}$.
+
+There is also a minumum number of iterations of the filter that need to be run. 
+Given:
+
+   * $N_{Samp}$: the number of sampled xy points in the input
+   * $N_{FFT}$: the number of re-sampled points used in the FFT
+  
+The minimum number of iterations required is: $\frac{2N_{Samp}}{N_{FFT}}$.
+
+## Styles
+
+The `html_vignette` template includes a basic CSS theme. To override this theme you can specify your own CSS in the document metadata as follows:
+
+    output: 
+      rmarkdown::html_vignette:
+        css: mystyles.css
+
+## Figures
+
+The figure sizes have been customised so that you can easily put two images side-by-side. 
+
+```{r, fig.show='hold'}
+plot(1:10)
+plot(10:1)
+```
+
+You can enable figure captions by `fig_caption: yes` in YAML:
+
+    output:
+      rmarkdown::html_vignette:
+        fig_caption: yes
+
+Then you can use the chunk option `fig.cap = "Your figure caption."` in **knitr**.
+
+## More Examples
+
+You can write math expressions, e.g. $Y = X\beta + \epsilon$, footnotes^[A footnote here.], and tables, e.g. using `knitr::kable()`.
+
+```{r, echo=FALSE, results='asis'}
+knitr::kable(head(mtcars, 10))
+```
+
+Also a quote using `>`:
+
+> "He who gives up [code] safety for [code] speed deserves neither."
+([via](https://twitter.com/hadleywickham/status/504368538874703872))
