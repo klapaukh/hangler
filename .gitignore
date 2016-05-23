@@ -20,3 +20,10 @@ vignettes/*.pdf
 
 # installed documentation
 inst/doc
+
+# Temp files
+*.swp
+*.swo
+*~
+.#*
+~$*

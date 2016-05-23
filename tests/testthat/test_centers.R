@@ -82,3 +82,16 @@ test_that("findTangentAngle solutions make sense", {
     expect_equal(findTangentAngle(xc,yc,x[idx],y[idx]), tangent[idx])
   })
  })
+
+
+test_that('secant Method search sometimes works', {
+  f1 <- sin
+  f2 <- tan
+  f3 <- function(x)  x**3 + x*x + 5*x + 7
+
+  sapply(c(f1,f2,f3), function(f) { 
+    expect_less_than(abs(f1(secantMethod(f1, 0.4, 0.2, 500, 1e-4))), 1e-4)
+  });
+
+ })
+

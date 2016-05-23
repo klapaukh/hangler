@@ -26,6 +26,8 @@ and if it is remove one of the repeated points.
 
 The algorith is a pipeline as follows:
 
+   1. Mirror curves where necessary
+   1. Ensure that all curves go in the same direction
    1. Remove duplicated xy point that closes the curve if present
    1. Smooth the input coordinates 
    1. Estimate tangents to each coordinate

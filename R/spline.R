@@ -1,8 +1,9 @@
 #' Fits a spline to the set of points provided. 
 #' 
 #' @param points The points which make up the digitised curve
-#' @return 
-fitspline <- NULL
+#' @return Coeffiecients for the spline 
+#' @export
+fitSpline <- NULL
 
 #' Finds the center of a circle given three points
 #' Equations taken from http://www.ambrsoft.com/TrigoCalc/Circle3D.htm
@@ -53,4 +54,53 @@ findTangentAngle <- function(xc, yc, x, y){
   theta = ifelse(theta < 0, 2*pi + theta, theta) 
   # Tangent is 90 degrees of the line itself
   return(theta) 
+}
+
+
+#' Compute the value of the tangent angle spline at s.
+#'
+#' @param s The arc distance along the spline to compute the tangent at
+#' @param si The arc distance at point measured point i. 
+#'            si < s and si > sk for all other sk < s.
+#' @param  sj The arc distance at the point after i.
+#'            sj > s and sj < sh for all other sh > s.
+#' @param thetai The tangent to the curve at distance si.
+#' @param thetaj The tangent to the curve at distance sj.
+#' @param deli The uncircleness of the spline between si and sj
+#' @return The tangent to the spline at distance s along the spline
+#' @export
+computeSpline <- function(s, si, sj, thetai, thetaj, deli){
+  t = (s - si) / (sj - si)
+  previousContrib = thetai * (1 - t) 
+  nextContrib     = thetaj * t
+  errorContrib    = 0.5*deli*t*(1-t)
+
+  return(previousContrib + nextContrib + errorContrib) 
+}
+
+#' Numerically estimate the value of deli for a curve segment of 
+#' the spline.
+#'
+estimateDeli <- NULL
+
+
+#' Secant method root finding
+#' 
+#' @param f The function to optimise to zero. Must take exactly 1 parameter
+#' @param x1 First guess
+#' @param x2 Second guess
+#' @param maxIter Maximum number of iterations to run for
+#' @param targetError Maximum error before the solution will be accepted as correct
+#' @return X value which returns zero. If root finding fails, returns NA
+#' @export
+secantMethod <- function(f, x1, x2, maxIter, targetError){
+  x = Reduce(function(guesses, iter){
+      fx1 = f(guesses[1])
+      if(abs(fx1) < targetError) return(guesses)
+      fx2 = f(guesses[2])
+      xNext = (guesses[2]*fx1 - guesses[1]*fx2) / (fx1 - fx2)
+      return(c(xNext,guesses[1]))
+    }, 1:maxIter, c(x1,x2));
+  x = x[1]
+  return(ifelse(abs(f(x)) <= targetError, x, NA))  
 }
