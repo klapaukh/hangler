@@ -90,8 +90,29 @@ test_that('secant Method search sometimes works', {
   f3 <- function(x)  x**3 + x*x + 5*x + 7
 
   sapply(c(f1,f2,f3), function(f) { 
-    expect_less_than(abs(f1(secantMethod(f1, 0.4, 0.2, 500, 1e-4))), 1e-4)
+    expect_less_than(abs(f(secantMethod(f, 0.4, 0.2, 500, 1e-4))), 1e-4)
   });
 
  })
 
+test_that('false position Method search sometimes works', {
+  f1 <- sin
+  f2 <- tan
+  f3 <- function(x)  x**3 + x*x + 5*x + 7
+
+  sapply(c(f1,f2,f3), function(f) { 
+    expect_less_than(abs(f(falsePositionMethod(f, 0.4, 0.2, 500, 1e-4))), 1e-4)
+  });
+
+ })
+
+test_that('simpsons rule integration works', {
+  f1 = function(x) 9 
+  f2 = sin
+  f3 = function(x) x + 2
+
+  expect_equal(simpsonsRule(f1, 0, 5, 1000), 45)
+  expect_equal(simpsonsRule(f2, 0, pi, 1000), 2)
+  expect_equal(simpsonsRule(f3, 0, 5, 1000), 22.5)
+  
+ })

@@ -70,7 +70,22 @@ findTangentAngle <- function(xc, yc, x, y){
 #' @return The tangent to the spline at distance s along the spline
 #' @export
 computeSpline <- function(s, si, sj, thetai, thetaj, deli){
-  t = (s - si) / (sj - si)
+  computeSplineT(t, thetai, thetaj, deli)
+}
+
+#' Compute the value of the tangent angle spline at s.
+#'
+#' @param s The arc distance along the spline to compute the tangent at
+#' @param si The arc distance at point measured point i. 
+#'            si < s and si > sk for all other sk < s.
+#' @param  sj The arc distance at the point after i.
+#'            sj > s and sj < sh for all other sh > s.
+#' @param thetai The tangent to the curve at distance si.
+#' @param thetaj The tangent to the curve at distance sj.
+#' @param deli The uncircleness of the spline between si and sj
+#' @return The tangent to the spline at distance s along the spline
+#' @export
+computeSplineT <- function(t, thetai, thetaj, deli){
   previousContrib = thetai * (1 - t) 
   nextContrib     = thetaj * t
   errorContrib    = 0.5*deli*t*(1-t)
@@ -104,3 +119,50 @@ secantMethod <- function(f, x1, x2, maxIter, targetError){
   x = x[1]
   return(ifelse(abs(f(x)) <= targetError, x, NA))  
 }
+
+#' False position method root finding
+#' 
+#' @param f The function to optimise to zero. Must take exactly 1 parameter
+#' @param x1 First guess
+#' @param x2 Second guess
+#' @param maxIter Maximum number of iterations to run for
+#' @param targetError Maximum error before the solution will be accepted as correct
+#' @return X value which returns zero. If root finding fails, returns NA
+#' @export
+falsePositionMethod <- function(f, x1, x2, maxIter, targetError){
+  x = Reduce(function(guesses, iter){
+      fx1 = f(guesses[1])
+      if(abs(fx1) < targetError) return(guesses)
+      fx2 = f(guesses[2])
+      xNext = (guesses[1]*fx2 - guesses[2]*fx1) / (fx2 - fx1)
+      return(c(xNext,guesses[1]))
+    }, 1:maxIter, c(x1,x2));
+  x = x[1]
+  return(ifelse(abs(f(x)) <= targetError, x, NA))  
+}
+
+
+#' Numerical integration using Simpson's rule
+#'
+#' @export
+simpsonsRule <- function(f, a, b, nBins){
+  cells = seq(a ,b, length.out = nBins + 1)
+  Reduce(function(soFar, nextCell){
+    current = simpsonsRuleCell(f, soFar[2], nextCell)
+    return(c(soFar[1] + current, nextCell))
+   }, cells[-1], c(0, a))[1]
+}
+
+#' Numerical integration of a single cell using
+#' Simpson's rule. 
+#'
+#' @param f The function to integrate. Must take exactly 1 parameter
+#' @param a Lower region bound
+#' @param b Upper region bound
+#' @return Numerical approximation of the integral of f on [a,b]
+simpsonsRuleCell <- function(f, a, b){
+  (b - a) * (f(a) + 4* f((a+b)/2) + f(b)) / 6
+}
+
+
+solveDeli <- function(dx, dy) {}
