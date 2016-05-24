@@ -131,8 +131,9 @@ secantMethod <- function(f, x1, x2, maxIter, targetError){
 #' @export
 falsePositionMethod <- function(f, x1, x2, maxIter, targetError){
   x = Reduce(function(guesses, iter){
+      if(length(guesses) == 1) return(guesses)
       fx1 = f(guesses[1])
-      if(abs(fx1) < targetError) return(guesses)
+      if(abs(fx1) < targetError) return(guesses[1])
       fx2 = f(guesses[2])
       xNext = (guesses[1]*fx2 - guesses[2]*fx1) / (fx2 - fx1)
       return(c(xNext,guesses[1]))
@@ -165,4 +166,11 @@ simpsonsRuleCell <- function(f, a, b){
 }
 
 
-solveDeli <- function(dx, dy) {}
+solveDeli <- function(dx, dy, thetai, thetaj) {
+  deli = secantMethod(function(deli){
+     xInt = simpsonsRule(function(x) {cos(computeSplineT(x, thetai, thetaj, deli))},0,1,100)
+     yInt = simpsonsRule(function(x) {sin(computeSplineT(x, thetai, thetaj, deli))},0,1,100)
+                       
+     (xInt / yInt) - (dx / dy)
+   }, 0.1, 0.2, 1000, 1e-4)
+}

@@ -90,7 +90,7 @@ test_that('secant Method search sometimes works', {
   f3 <- function(x)  x**3 + x*x + 5*x + 7
 
   sapply(c(f1,f2,f3), function(f) { 
-    expect_less_than(abs(f(secantMethod(f, 0.4, 0.2, 500, 1e-4))), 1e-4)
+    expect_lt(abs(f(secantMethod(f, 0.4, 0.2, 500, 1e-4))), 1e-4)
   });
 
  })
@@ -101,7 +101,7 @@ test_that('false position Method search sometimes works', {
   f3 <- function(x)  x**3 + x*x + 5*x + 7
 
   sapply(c(f1,f2,f3), function(f) { 
-    expect_less_than(abs(f(falsePositionMethod(f, 0.4, 0.2, 500, 1e-4))), 1e-4)
+    expect_lt(abs(f(falsePositionMethod(f, 0.4, 0.2, 500, 1e-4))), 1e-4)
   });
 
  })
@@ -115,4 +115,9 @@ test_that('simpsons rule integration works', {
   expect_equal(simpsonsRule(f2, 0, pi, 1000), 2)
   expect_equal(simpsonsRule(f3, 0, 5, 1000), 22.5)
   
+ })
+
+
+test_that('solveDeli is sensible', {
+  expect_lt(abs(solveDeli(1,1,0, pi/2)),1e-4)
  })
