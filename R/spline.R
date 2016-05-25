@@ -174,3 +174,8 @@ solveDeli <- function(dx, dy, thetai, thetaj) {
      (xInt / yInt) - (dx / dy)
    }, 0.1, 0.2, 1000, 1e-4)
 }
+
+
+solveDs <- function(dx, deli, thetai, thetaj){
+  dx / simpsonsRule(function(x) cos(computeSplineT(x, thetai, thetaj, deli)),0,1,100)
+}
