@@ -1,0 +1,81 @@
+---
+title: "Vignette Title"
+author: "Vignette Author"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+theta = seq(0,2*pi, 0.1)
+
+x = cos(theta)
+y = sin(theta)
+
+nPoints = length(theta)
+
+centers = lapply(1:nPoints, function(i){
+  ip = i - 1
+  inext = i + 1
+
+  ip = ifelse(ip < 1, nPoints - ip, ip) 
+  inext = ifelse(inext > nPoints, inext- nPoints, inext) 
+  findCenter(x[ip],y[ip],x[i],y[i],x[inext],y[inext])
+})
+
+xc = sapply(centers, function(c) c[1])
+yc = sapply(centers, function(c) c[2])
+
+
+tangents = sapply(1:nPoints, function(i) findTangentAngle(xc[i], yc[i], x[i], y[i]))
+
+deli = sapply(1:nPoints, function(i) {
+  inext = i + 1
+  inext = ifelse(inext > nPoints, inext- nPoints, inext) 
+
+  tryCatch(solveDeli(x[inext] - x[i], y[inext] - y[i], tangents[i], tangents[inext]), error =
+          function(e){ 
+            print(e)
+            stop(paste("iter",i, inext))
+          }
+  )
+})
+
+ds = sapply(1:nPoints, function(i) {
+  inext = i + 1
+  inext = ifelse(inext > nPoints, inext- nPoints, inext) 
+
+  tryCatch(solveDs(x[inext] - x[i], deli[i], tangents[i], tangents[inext]), error =
+          function(e){ 
+            print(e)
+            stop(paste("iter",i, inext))
+          }
+  )
+})
+
+ds = abs(ds)
+
+si = cumsum(c(0,ds))
+
+samples = sapply(seq(0,si[length(si)],length = 1024), function(s){
+  i = which(si < s)
+  if(length(i)==0){
+    i = 1
+  }else{
+    i = max(i)
+  }
+
+  inext = i + 1
+  sinext = ifelse(inext > length(si), inext-length(si), inext)
+  tinext = ifelse(inext > length(tangents), inext-length(tangents), inext)
+
+  computeSpline(s, si[i], si[sinext], tangents[i], tangents[tinext], deli[i])
+
+})
+
+
+coeffs = fft(samples)
+```
