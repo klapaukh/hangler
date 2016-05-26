@@ -70,6 +70,7 @@ findTangentAngle <- function(xc, yc, x, y){
 #' @return The tangent to the spline at distance s along the spline
 #' @export
 computeSpline <- function(s, si, sj, thetai, thetaj, deli){
+  t = (s - si) / (sj - si)
   computeSplineT(t, thetai, thetaj, deli)
 }
 
@@ -86,6 +87,15 @@ computeSpline <- function(s, si, sj, thetai, thetaj, deli){
 #' @return The tangent to the spline at distance s along the spline
 #' @export
 computeSplineT <- function(t, thetai, thetaj, deli){
+    if(abs(thetai - thetaj) > pi){
+    #E.g. 6.2 & 0.2 so the linear interpolation will be going the long way round
+    if(thetai < thetaj){
+      thetai = thetai + 2*pi
+    } else {
+      thetaj = thetaj + 2*pi
+    }
+  }
+
   previousContrib = thetai * (1 - t) 
   nextContrib     = thetaj * t
   errorContrib    = 0.5*deli*t*(1-t)
@@ -110,8 +120,9 @@ estimateDeli <- NULL
 #' @export
 secantMethod <- function(f, x1, x2, maxIter, targetError){
   x = Reduce(function(guesses, iter){
+      if(length(guesses) == 1) return(guesses)
       fx1 = f(guesses[1])
-      if(abs(fx1) < targetError) return(guesses)
+      if(abs(fx1) < targetError) return(guesses[1])
       fx2 = f(guesses[2])
       xNext = (guesses[2]*fx1 - guesses[1]*fx2) / (fx1 - fx2)
       return(c(xNext,guesses[1]))
@@ -168,14 +179,15 @@ simpsonsRuleCell <- function(f, a, b){
 
 solveDeli <- function(dx, dy, thetai, thetaj) {
   deli = secantMethod(function(deli){
+
      xInt = simpsonsRule(function(x) {cos(computeSplineT(x, thetai, thetaj, deli))},0,1,100)
      yInt = simpsonsRule(function(x) {sin(computeSplineT(x, thetai, thetaj, deli))},0,1,100)
-                       
+
      (xInt / yInt) - (dx / dy)
    }, 0.1, 0.2, 1000, 1e-4)
 }
 
 
 solveDs <- function(dx, deli, thetai, thetaj){
-  dx / simpsonsRule(function(x) cos(computeSplineT(x, thetai, thetaj, deli)),0,1,100)
+  dx / simpsonsRule(function(x) { cos(computeSplineT(x, thetai, thetaj, deli)) },0,1,100)
 }
