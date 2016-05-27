@@ -10,6 +10,7 @@ fitSpline <- NULL
 #' 
 #' @param points that make up the three points on the circumference
 #' @return a vector [x,y] that is the center of the circle 
+#' @export
 findCenter <- function(x1, y1, x2, y2, x3, y3){
   A = x1 * (y2 - y3) - 
       y1 * (x2 - x3) + 
@@ -47,6 +48,7 @@ distance <- function(x1, y1, x2, y2){
 #' @param xc, yc coordinates of the circle's center
 #' @param x,y coordinates of a point on the cicle's circumference
 #' @return tangent angle to the circle
+#' @export
 findTangentAngle <- function(xc, yc, x, y){
   x = x - xc 
   y = y - yc
@@ -176,7 +178,9 @@ simpsonsRuleCell <- function(f, a, b){
   (b - a) * (f(a) + 4* f((a+b)/2) + f(b)) / 6
 }
 
-
+#' Find the delta i values along the spiline
+#'
+#' @export
 solveDeli <- function(dx, dy, thetai, thetaj) {
   deli = secantMethod(function(deli){
 
@@ -187,7 +191,9 @@ solveDeli <- function(dx, dy, thetai, thetaj) {
    }, 0.1, 0.2, 1000, 1e-4)
 }
 
-
+#' Find the delta s values along the spline
+#'
+#' @export
 solveDs <- function(dx, deli, thetai, thetaj){
   dx / simpsonsRule(function(x) { cos(computeSplineT(x, thetai, thetaj, deli)) },0,1,100)
 }

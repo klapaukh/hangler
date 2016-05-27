@@ -1,6 +1,6 @@
 ---
-title: "Vignette Title"
-author: "Vignette Author"
+title: "Using Hangler"
+author: "Roman Klapaukh"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
@@ -9,13 +9,42 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
+We are going to run through an example of using hangler to analyse a unit 
+circle. 
+
+
+First we need to generate our data set. This is equivalent to a human digitising
+a curve. We come out with only a set of xy coordinates sampled along the shape. 
+
+```{r}
+library(hangler)
+```
+
 ```{r}
 theta = seq(0,2*pi, 0.1)
 
 x = cos(theta)
 y = sin(theta)
 
-nPoints = length(theta)
+rm(theta)
+```
+
+We can now plot it and see our apeture.
+
+```{r fig.caption="The unit circle"}
+plot(x,y)
+```
+
+For convenience we want a variable to keep track of how many landmarks we have. 
+
+```{r}
+nPoints = length(x)
+```
+
+The next step is to get the spline coefficients
+
+```{r}
+
 
 centers = lapply(1:nPoints, function(i){
   ip = i - 1
@@ -39,7 +68,7 @@ deli = sapply(1:nPoints, function(i) {
   tryCatch(solveDeli(x[inext] - x[i], y[inext] - y[i], tangents[i], tangents[inext]), error =
           function(e){ 
             print(e)
-            stop(paste("iter",i, inext))
+            stop(paste(e,"\niter",i, inext))
           }
   )
 })
@@ -51,7 +80,7 @@ ds = sapply(1:nPoints, function(i) {
   tryCatch(solveDs(x[inext] - x[i], deli[i], tangents[i], tangents[inext]), error =
           function(e){ 
             print(e)
-            stop(paste("iter",i, inext))
+            stop(paste(e, "\niter",i, inext))
           }
   )
 })
@@ -59,7 +88,12 @@ ds = sapply(1:nPoints, function(i) {
 ds = abs(ds)
 
 si = cumsum(c(0,ds))
+```
 
+
+Then resample the spline
+
+```{r}
 samples = sapply(seq(0,si[length(si)],length = 1024), function(s){
   i = which(si < s)
   if(length(i)==0){
@@ -75,7 +109,20 @@ samples = sapply(seq(0,si[length(si)],length = 1024), function(s){
   computeSpline(s, si[i], si[sinext], tangents[i], tangents[tinext], deli[i])
 
 })
+```
 
 
+We can now plot the resampled curve to make sure that it looks the same as the
+original. Note, however, that the new curve does not preserve the size of the
+original.
+
+```{r}
+with(tangentsToXY(samples), plot(x, y))
+```
+
+
+Finally we can now run the FFT over the resampled spline. 
+
+```{r}
 coeffs = fft(samples)
 ```
