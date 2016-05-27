@@ -3,6 +3,7 @@
 export(computeSpline)
 export(computeSplineT)
 export(falsePositionMethod)
+export(fftoToCoeffs)
 export(findCenter)
 export(findTangentAngle)
 export(fitSpline)

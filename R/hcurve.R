@@ -27,6 +27,18 @@ tangentsToXY <- function(tangents){
 #' @param Coeffs The output of fft
 #' @return Ak and sk values for the reverse fourier
 #' @export
-fftoToCoeffs <- function(fftCoeffs)"{
+fftoToCoeffs <- function(fftCoeffs){
+  coeffs = lapply(1:length(fftCoeffs) , function(i){
+    k = i-1
+    ak = Re(fftCoeffs[i])
+    bk = abs(Im(fftCoeffs[i]))
 
+    Ak = 2 * sqrt( ak * ak + bk * bk)
+    sk = -atan(bk/ak)/k
+
+    return(c(Ak,sk))
+  })
+
+  return(list(Ak = sapply(coeffs, function(i) i[1]), 
+              sk = sapply(coeffs, function(i) i[2])))
 }

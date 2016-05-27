@@ -121,8 +121,26 @@ with(tangentsToXY(samples), plot(x, y))
 ```
 
 
-Finally we can now run the FFT over the resampled spline. 
+We can now run the FFT over the resampled spline. 
 
 ```{r}
 coeffs = fft(samples)
 ```
+
+We start by taking only the first 30 and now trying to reconstruct the original
+curve. 
+
+```{r}
+coeffs = coeffs[1:30]
+```
+
+
+We now want to go back from fft coefficients to fft parameters to go backwards.
+
+```{r}
+backCoeffs = fftoToCoeffs(coeffs)
+```
+
+Now we can reconstruct the original curve. 
+
+
