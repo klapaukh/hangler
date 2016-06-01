@@ -31,7 +31,7 @@ fftoToCoeffs <- function(fftCoeffs){
   coeffs = lapply(1:length(fftCoeffs) , function(i){
     k = i-1
     ak = Re(fftCoeffs[i])
-    bk = abs(Im(fftCoeffs[i]))
+    bk = Im(fftCoeffs[i])
 
     Ak = 2 * sqrt( ak * ak + bk * bk)
     sk = -atan(bk/ak)/k
@@ -41,4 +41,18 @@ fftoToCoeffs <- function(fftCoeffs){
 
   return(list(Ak = sapply(coeffs, function(i) i[1]), 
               sk = sapply(coeffs, function(i) i[2])))
+}
+
+
+#' Get tangent at curve. Length is normalised to 2pi
+#'
+#' @export
+getTangentAtS <- function(s, coeffs){
+  maxK = length(coeffs$sk)
+  s + sum(sapply(2:maxK, function(idx){
+    k = idx - 1
+    Ak = coeffs$Ak[idx]
+    sk = coeffs$sk[idx]
+    return(Ak*cos(k*(s-sk)))
+  }))
 }

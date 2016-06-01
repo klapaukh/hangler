@@ -44,8 +44,6 @@ nPoints = length(x)
 The next step is to get the spline coefficients
 
 ```{r}
-
-
 centers = lapply(1:nPoints, function(i){
   ip = i - 1
   inext = i + 1
@@ -120,11 +118,34 @@ original.
 with(tangentsToXY(samples), plot(x, y))
 ```
 
-
+First we reset the curve to start from 0.
+Then we find the difference between the sampled tangents and the uni circle. 
 We can now run the FFT over the resampled spline. 
 
 ```{r}
-coeffs = fft(samples)
+diffs = diff(samples)
+
+shortestAngle = function(theta){
+  if(theta >= 2*pi){
+    theta = theta %% (2*pi)
+  } else if(theta <= -2*pi){
+    theta = theta  %% (-2*pi)
+  }
+  if(theta > pi){
+    return(theta - 2*pi)
+  }else if(theta < -pi){
+    return(2*pi + theta)
+  }else{
+    return(theta)
+  }
+}
+
+diffs = sapply(diffs, shortestAngle)
+
+samples = cumsum(c(0,diffs))
+
+samples= sapply(1:length(samples), function(i) samples[i] - (pi/512)*(i-1)) 
+coeffs = fft(samples)/length(samples)
 ```
 
 We start by taking only the first 30 and now trying to reconstruct the original
@@ -143,4 +164,8 @@ backCoeffs = fftoToCoeffs(coeffs)
 
 Now we can reconstruct the original curve. 
 
-
+```{r}
+reconstructedTangents = sapply(seq(0,2*pi,length.out=1024),
+      function(s) getTangentAtS(s,backCoeffs))
+with(tangentsToXY(reconstructedTangents), plot(x, y,col=rainbow(1024)))
+```
