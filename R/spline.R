@@ -105,12 +105,6 @@ computeSplineT <- function(t, thetai, thetaj, deli){
   return(previousContrib + nextContrib + errorContrib) 
 }
 
-#' Numerically estimate the value of deli for a curve segment of 
-#' the spline.
-#'
-estimateDeli <- NULL
-
-
 #' Secant method root finding
 #' 
 #' @param f The function to optimise to zero. Must take exactly 1 parameter

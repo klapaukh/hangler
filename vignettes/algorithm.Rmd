@@ -32,8 +32,9 @@ The algorith is a pipeline as follows:
    1. Smooth the input coordinates 
    1. Estimate tangents to each coordinate
    1. Compute a spline to model the tangents of the closed curve
-   1. Normalise the spline length to $2\pi$
    1. Resample the spline to get 1024 (usually) points
+   1. Normalise the spline starting position to 0
+   1. Subtract the tangents of the unit circle from the spline
    1. Normalise the starting position and orientation by either:
       * Normalisation by harmonics
       * Normalisation by matching against all speciments
@@ -65,40 +66,96 @@ Given:
   
 The minimum number of iterations required is: $\frac{2N_{Samp}}{N_{FFT}}$.
 
-## Styles
 
-The `html_vignette` template includes a basic CSS theme. To override this theme you can specify your own CSS in the document metadata as follows:
+## Estimating tangents for sampled points
 
-    output: 
-      rmarkdown::html_vignette:
-        css: mystyles.css
 
-## Figures
+The tangents are estimated assuming that each triplet of points lies on the 
+surface of a circle. So assuming we have sampled points $p_1\ldots p_n$, to find
+the tangent $\theta_i$ for $p_i$ we take several steps:
 
-The figure sizes have been customised so that you can easily put two images side-by-side. 
+   1. Find the center of the circle described by the three points.
+      Given three points $(x_1,y_1), (x_2,y_2), (x_3,y_3)$ the center can be
+      found using the following equations 
+      ([http://www.ambrsoft.com/TrigoCalc/Circle3D.htm](http://www.ambrsoft.com/TrigoCalc/Circle3D.htm)):
 
-```{r, fig.show='hold'}
-plot(1:10)
-plot(10:1)
-```
+      $$
+      x_{center} = \frac{(x_1^2 + y_1^2)(y_2 - y_3) + 
+      (x_2^2 + y_2^2)(y_3 - y_1) +
+      (x_3^2 + y_3^2)(y_1 - y_2)}
+      {2(x_1(y_2-y_3) - y1(x_2-x_3) + x_2y_3 - x_3y_2)}
+      $$
 
-You can enable figure captions by `fig_caption: yes` in YAML:
+      $$
+      y_{center} = \frac{(x_1^2 + y_1^2)(x_3 - x_2) + 
+      (x_2^2 + y_2^2)(x_1 - x_3) +
+      (x_3^2 + y_3^2)(x_2 - x_1)}
+      {2(x_1(y_2-y_3) - y1(x_2-x_3) + x_2y_3 - x_3y_2)}
+      $$
 
-    output:
-      rmarkdown::html_vignette:
-        fig_caption: yes
+   1. Find the angle between the center and $p_i$ and subtract $\frac{\pi}{2}$ 
+      from the angle to get the tangent ($\theta_i$):
 
-Then you can use the chunk option `fig.cap = "Your figure caption."` in **knitr**.
+      $$\theta_i = \mathrm{atan2}\left(y_i - y_{center}, x_i - x_{center}\right) - \frac{\pi}{2}$$
 
-## More Examples
+## Computing the spline coefficients
 
-You can write math expressions, e.g. $Y = X\beta + \epsilon$, footnotes^[A footnote here.], and tables, e.g. using `knitr::kable()`.
+Hangle uses a spline to interpolate points in between the samples. This spline
+function requires three extra paramaters for each point in order to compute:
 
-```{r, echo=FALSE, results='asis'}
-knitr::kable(head(mtcars, 10))
-```
+   * $s_i$: The arc-length along the curve until this point.
+   * $s_{i+1} - s_i$: The arc-length between this point and the next point on
+     the curve.
+   * $\Delta_i$: How uncircular this bit of curve is.
 
-Also a quote using `>`:
+There is no simple analytical method that I am aware of to compute $\Delta_i$.
+Instead, we will do all the computation by numerical approximation. Note that we
+do not have bounds on the values of $\Delta_i$ and $s_k$ (ruling out methods such as
+bisection), nor can we compute a derivative (ruling out methods such as
+Newton's). In this implementation we use the secant method for numerical
+root finding, and Simpson's rule for numerical integration.
 
-> "He who gives up [code] safety for [code] speed deserves neither."
-([via](https://twitter.com/hadleywickham/status/504368538874703872))
+#### Computing $\Delta_i$
+
+Given that we now have a set of tangents ($\theta_1\ldots\theta_n$), we can
+compute $\Delta_i$ by using the secant method and Simpson's rule to numerically
+estimate the zero value for:
+
+$$  
+f(\Delta_i) = 
+     \frac
+     {\int_0^1 \cos\left(\theta_i(1-t) + \theta_{i+1}t + \frac{1}{2}\Delta_i(1-t)t\right) dt}
+     {\int_0^1 \sin\left(\theta_i(1-t) + \theta_{i+1}t + \frac{1}{2}\Delta_i(1-t)t\right) dt}
+     - \frac{x_{i+1} - x_i}{y_{i+1} - y_i} = 0
+$$
+
+
+Note that $\Delta_i$ is the only unknown value. Also note that this does linear
+interpolation between $\theta_i$ and $\theta_{i+1}$ which means that when two
+$\theta$ values are used in the equation there must not be any wrapping around
+which can come from angle measurements. E.g. the pair of $\theta$s, 0 and 6.1,
+would cause problems. They should instead be either (0 and -0.183) or (6.283 and
+6.1).
+
+#### Computing $s_{i+1} - s_i$
+
+Once we have $\Delta_i$ finding the distance along the curve to the next point
+($s_{i+1} - s_i$) involves only a numerical integration.
+
+$$
+s_{i+1} - s_i = 
+\frac{x_{i+1} - x_i}
+{\int_0^1 \cos\left(\theta_i(1-t) + \theta_{i+1}t + \frac{1}{2}\Delta_i(1-t)t\right) dt}
+$$
+
+
+#### Computing $s_i$
+
+Computing the $s_i$ involves simply summing the $s_{i+1} - s_i$ values which we
+computed previously to get the total distance for each point. Note that $s_0 =
+0$, and the following formula works for all $i>0$:
+
+$$
+s_i = \displaystyle\sum_{k=0}^{i-1} s_{k+1} - s_k
+$$
+
