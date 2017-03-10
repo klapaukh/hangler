@@ -1,0 +1,205 @@
+---
+title: "Using Hangler on a More Complex Curve"
+author: "Roman Klapaukh"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+We are going to run through an example of using hangler to analyse a simple
+closed curve shape. 
+
+
+First we need to generate our data set. This is equivalent to a human digitising
+a curve. We come out with only a set of xy coordinates sampled along the shape. 
+
+```{r}
+library(hangler)
+```
+
+```{r}
+theta = seq(0,2*pi, 0.1)
+
+radius = 6
+
+wiggle = 7
+
+x = (sin(theta*wiggle) + radius) * cos(theta)
+y = (sin(theta*wiggle) + radius) * sin(theta)
+
+rm(theta)
+rm(wiggle)
+rm(radius)
+```
+
+We can now plot it and see our apeture.
+
+```{r fig.caption="The base closed curve"}
+plot(x,y,col="black")
+lines(c(x,x[1]),c(y,y[1]),col="blue")
+```
+
+For convenience we want a variable to keep track of how many landmarks we have. 
+
+```{r}
+nPoints = length(x)
+```
+
+The next step is to get the spline coefficients. The spline is not of the 
+curve itself, but rather of it's tangents. So that is what we calculate 
+first.
+
+```{r}
+centers = lapply(1:nPoints, function(i){
+  ip = i - 1
+  inext = i + 1
+
+  ip = ifelse(ip < 1, nPoints - ip, ip) 
+  inext = ifelse(inext > nPoints, inext- nPoints, inext) 
+  findCenter(x[ip],y[ip],x[i],y[i],x[inext],y[inext])
+})
+
+xc = sapply(centers, function(c) c[1])
+yc = sapply(centers, function(c) c[2])
+
+
+tangents = sapply(1:nPoints, function(i) findTangentAngle(xc[i], yc[i], x[i], y[i]))
+```
+
+Now we can plot the tangents and notice that the tangent curve we get is not 
+nice and continuous.
+
+```{r}
+plot(tangents)
+lines(tangents,col="blue")
+```
+
+We can plot them on the original shape to see that is not just a mistake.
+
+```{r}
+plot(x,y,col="black")
+lines(c(x,x[1]),c(y,y[1]),col="blue")
+for(i in 1:nPoints){
+dtx = cos(tangents[i])
+dty = sin(tangents[i])
+lines(c(x[i] - dtx,x[i]+dtx),y=c(y[i] - dty,y[i]+dty),col="purple")
+}
+```
+
+This is because you can have the same angle turning left / right. So we need
+to make them not so much all the same direction, but rather all as close to the
+previous one as they can be. Note that angles do not need to be within 
+[0,2$\pi$].
+
+```{r}
+fixAngles <- function(angles){
+  Reduce(function(soFar, angle){
+    if(length(soFar) == 0) { 
+      return(angle)
+    }
+    lastAngle = soFar[length(soFar)]
+    while(angle < lastAngle){
+      angle = angle + pi
+    }
+    while(angle - pi > lastAngle){
+      angle = angle - pi
+    }
+    nangle = angle - pi
+    nangle = ifelse(abs(nangle-lastAngle) < abs(angle-lastAngle), nangle,angle)
+    return(c(soFar, nangle))
+    }, angles, c())
+}
+```
+
+We also remove the effect of the unit circle (which is the upslope), as this
+method is about the curve that is not accounted for by a unit circle.
+
+Now we can look at the fixed tangents
+
+```{r}
+tangents = fixAngles(tangents)
+plot(tangents)
+lines(tangents,col="blue")
+```
+
+And they still fit the shape
+
+```{r}
+plot(x,y,col="black")
+lines(c(x,x[1]),c(y,y[1]),col="blue")
+for(i in 1:nPoints){
+dtx = cos(tangents[i])
+dty = sin(tangents[i])
+lines(c(x[i] - dtx,x[i]+dtx),y=c(y[i] - dty,y[i]+dty),col="purple")
+}
+```
+
+At this point we *could* resample. But it's not necessary because modern
+computers can calculate FFTs on any sized array. The only reason we may now
+need to do it, is to artificially increase the nyquist frequency.
+
+First we reset the curve to start from 0.
+Then we find the difference between the sampled tangents and the uni circle. 
+
+```{r}
+diffs = diff(tangents)
+
+shortestAngle = function(theta){
+  if(theta >= 2*pi){
+    theta = theta %% (2*pi)
+  } else if(theta <= -2*pi){
+    theta = theta  %% (-2*pi)
+  }
+  if(theta > pi){
+    return(theta - 2*pi)
+  }else if(theta < -pi){
+    return(2*pi + theta)
+  }else{
+    return(theta)
+  }
+}
+
+diffs = sapply(diffs, shortestAngle)
+
+samples = cumsum(c(0,diffs))
+
+samples= sapply(1:length(samples), function(i) samples[i] - (2*pi/nPoints)*(i-1)) 
+```
+
+This gives us what looks now like a standard signal
+
+```{r}
+plot(samples)
+lines(samples,col="blue")
+```
+
+We can now run the FFT over the resampled spline. 
+
+```{r}
+coeffs = fft(samples)/length(samples)
+```
+
+We start by taking only the first 30 and now trying to reconstruct the original
+curve. 
+
+```{r}
+coeffs = coeffs[1:30]
+```
+
+
+We now want to go back from fft coefficients to fft parameters to go backwards.
+
+```{r}
+backCoeffs = fftoToCoeffs(coeffs)
+```
+
+Now we can reconstruct the original curve. 
+
+```{r}
+reconstructedTangents = sapply(seq(0,2*pi,length.out=256),
+      function(s) getTangentAtS(s,backCoeffs))
+with(tangentsToXY(reconstructedTangents), plot(x, y,col=rainbow(256)))
+```
