@@ -1,9 +1,161 @@
-#' Fits a spline to the set of points provided. 
+#' Turn a shape into a set of tangents as offsets from the unit
+#' circle.
 #' 
-#' @param points The points which make up the digitised curve
-#' @return Coeffiecients for the spline 
+#' @param x The x coordinates for the points which make up the digitised curve
+#' @param y The y coordinates for the points which make up the digitised curve
+#' @return Tangents 
 #' @export
-fitSpline <- NULL
+computeTangents <- function(x,y){
+  if(length(x) != length(y)){
+    stop(paste0("x (", length(x), " elements) and y (",
+                length(y), " elements) must be the same length but are not"))
+  }
+
+  nPoints = length(y)
+
+  # Start by finding the center of every triple of points as
+  # a circle
+  centers = lapply(1:nPoints, function(i){
+    ip = i - 1
+    inext = i + 1
+
+    ip = ifelse(ip < 1, nPoints - ip, ip) 
+    inext = ifelse(inext > nPoints, inext - nPoints, inext) 
+    findCenter(x[ip],y[ip],x[i],y[i],x[inext],y[inext])
+  })
+
+  #extract the x and y coordinates
+  xc = sapply(centers, function(c) c[1])
+  yc = sapply(centers, function(c) c[2])
+
+  #Compute the tangents
+  tangents = sapply(1:nPoints, function(i) findTangentAngle(xc[i], yc[i], x[i], y[i]))
+
+  # Smooth the values to avoid discontinuities from trig functions 
+  tangents = sequenceAngles(tangents)
+
+  # Reset the curve to start from zero, by turning it into a sequence of 
+  # step changes and recombining
+  diffs = diff(tangents)
+
+  #diffs = sapply(diffs, shortestAngle)
+
+  samples = cumsum(c(0,diffs))
+
+  # Subtract the effect of the unit circle 
+  # (linearly increasing tangent angle from 0 to 2pi)
+  samples= sapply(1:length(samples), function(i) samples[i] - (2*pi/nPoints)*(i-1)) 
+
+  return(samples)
+}
+
+#' Resample the tangents curve to a given number of samples.
+#' Uses the Hangle spline function. This function has a lot of 
+#' numerical approximation in it. You should always compare its
+#' output to the original to make sure nothing when wrong.
+#'
+#' @param x The x coordinates for the points which make up the digitised curve
+#' @param y The y coordinates for the points which make up the digitised curve
+#' @param tangents A vector of tangents
+#' @param length.out The length of the output array
+#' @return A resampled tangent vector with length length.out
+resampleTangents <- function(x,y,tangents,length.out=1024){
+  nPoints = length(tangents)
+
+  # Try approximate the deli values for the spline
+  deli = sapply(1:nPoints, function(i) {
+    inext = i + 1
+    inext = ifelse(inext > nPoints, inext - nPoints, inext) 
+  
+    tryCatch(solveDeli(x[inext] - x[i], y[inext] - y[i], tangents[i], tangents[inext]), 
+      error = function(e){ 
+                stop(paste(e,"\nFailed to compute deli for spline between",i, 
+                           "and",inext))
+              }
+    )
+  })
+
+  # Using the deli values try approximate the ds values
+  ds = sapply(1:nPoints, function(i) {
+    inext = i + 1
+    inext = ifelse(inext > nPoints, inext - nPoints, inext) 
+ 
+    tryCatch(solveDs(x[inext] - x[i], deli[i], tangents[i], tangents[inext]), 
+      error = function(e){ 
+                stop(paste(e, "\nFailed to compute ds for spline between",i,
+                          "and", inext))
+              }
+    )
+  })
+
+  # Need them to be positive
+  ds = abs(ds)
+
+  # si are the cumulative sum of ds value
+  si = cumsum(c(0,ds))
+
+  # Recompute the right number of tangents from the spline
+  samples = sapply(seq(0,si[length(si)],length = length.out), function(s){
+    i = which(si < s)
+    if(length(i)==0){
+      i = 1
+    }else{
+      i = max(i)
+    }
+
+    inext = i + 1
+    sinext = ifelse(inext > length(si), inext-length(si), inext)
+    tinext = ifelse(inext > length(tangents), inext-length(tangents), inext)
+
+    computeSpline(s, si[i], si[sinext], tangents[i], tangents[tinext], deli[i])
+  })
+
+  return(samples)
+}
+
+#' Make a sequence of angles in radians all follow each other in with a value
+#' as close to the previous as possible
+#'
+#' @param angles An ordered vector of angles (in radians)
+#' @return a vector of angles where the adjacent angles are as close to each
+#'  other in magnitude as possible
+sequenceAngles <- function(angles){
+  Reduce(function(soFar, angle){
+    if(length(soFar) == 0) { 
+      return(angle)
+    }
+    lastAngle = soFar[length(soFar)]
+    while(angle < lastAngle){
+      angle = angle + pi
+    }
+    while(angle - pi > lastAngle){
+      angle = angle - pi
+    }
+    nangle = angle - pi
+    nangle = ifelse(abs(nangle-lastAngle) < abs(angle-lastAngle), nangle,angle)
+    return(c(soFar, nangle))
+  }, angles, c())
+}
+  
+#' Convert an angle in radians into a standard form.
+#' Takes any angle in radians and returns an angle beween pi and -pi.
+#'
+#' @param Theta an angle in radians
+#' @return an angle in radians between pi and -pi
+boundAngle <- function(theta){
+  if(theta >= 2*pi){
+    theta = theta %% (2*pi)
+  } else if(theta <= -2*pi){
+    theta = theta  %% (-2*pi)
+  }
+  if(theta > pi){
+    return(theta - 2*pi)
+  }else if(theta < -pi){
+    return(2*pi + theta)
+  }else{
+    return(theta)
+  }
+}
 
 #' Finds the center of a circle given three points
 #' Equations taken from http://www.ambrsoft.com/TrigoCalc/Circle3D.htm
@@ -191,3 +343,5 @@ solveDeli <- function(dx, dy, thetai, thetaj) {
 solveDs <- function(dx, deli, thetai, thetaj){
   dx / simpsonsRule(function(x) { cos(computeSplineT(x, thetai, thetaj, deli)) },0,1,100)
 }
+
+# vim: expandtab sw=2 ts=2  

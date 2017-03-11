@@ -1,5 +1,5 @@
 ---
-title: "Using Hangler on a More Complex Curve"
+title: "Explaining Hangler on a More Complex Curve"
 author: "Roman Klapaukh"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
@@ -94,33 +94,13 @@ to make them not so much all the same direction, but rather all as close to the
 previous one as they can be. Note that angles do not need to be within 
 [0,2$\pi$].
 
-```{r}
-fixAngles <- function(angles){
-  Reduce(function(soFar, angle){
-    if(length(soFar) == 0) { 
-      return(angle)
-    }
-    lastAngle = soFar[length(soFar)]
-    while(angle < lastAngle){
-      angle = angle + pi
-    }
-    while(angle - pi > lastAngle){
-      angle = angle - pi
-    }
-    nangle = angle - pi
-    nangle = ifelse(abs(nangle-lastAngle) < abs(angle-lastAngle), nangle,angle)
-    return(c(soFar, nangle))
-    }, angles, c())
-}
-```
-
 We also remove the effect of the unit circle (which is the upslope), as this
 method is about the curve that is not accounted for by a unit circle.
 
 Now we can look at the fixed tangents
 
 ```{r}
-tangents = fixAngles(tangents)
+tangents = sequenceAngles(tangents)
 plot(tangents)
 lines(tangents,col="blue")
 ```

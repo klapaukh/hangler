@@ -1,5 +1,5 @@
 ---
-title: "Using Hangler"
+title: "Explaining Hangler on a Unit Circle"
 author: "Roman Klapaukh"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette

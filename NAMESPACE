@@ -2,11 +2,11 @@
 
 export(computeSpline)
 export(computeSplineT)
+export(computeTangents)
 export(falsePositionMethod)
 export(fftoToCoeffs)
 export(findCenter)
 export(findTangentAngle)
-export(fitSpline)
 export(getTangentAtS)
 export(secantMethod)
 export(simpsonsRule)
