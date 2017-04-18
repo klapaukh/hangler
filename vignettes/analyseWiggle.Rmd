@@ -25,7 +25,7 @@ theta = seq(0,2*pi, 0.1)
 
 radius = 6
 
-wiggle = 7
+wiggle = 4
 
 x = (sin(theta*wiggle) + radius) * cos(theta)
 y = (sin(theta*wiggle) + radius) * sin(theta)
@@ -83,24 +83,25 @@ We can plot them on the original shape to see that is not just a mistake.
 plot(x,y,col="black")
 lines(c(x,x[1]),c(y,y[1]),col="blue")
 for(i in 1:nPoints){
-dtx = cos(tangents[i])
-dty = sin(tangents[i])
-lines(c(x[i] - dtx,x[i]+dtx),y=c(y[i] - dty,y[i]+dty),col="purple")
+  dtx = cos(tangents[i])
+  dty = sin(tangents[i])
+  lines(c(x[i] - dtx,x[i]+dtx),y=c(y[i] - dty,y[i]+dty),col="purple")
 }
 ```
 
 This is because you can have the same angle turning left / right. So we need
 to make them not so much all the same direction, but rather all as close to the
 previous one as they can be. Note that angles do not need to be within 
-[0,2$\pi$].
+[0,2$\pi$]. We also shift them to start at 0.
 
-We also remove the effect of the unit circle (which is the upslope), as this
-method is about the curve that is not accounted for by a unit circle.
+
 
 Now we can look at the fixed tangents
 
 ```{r}
 tangents = sequenceAngles(tangents)
+diffs = diff(tangents)
+tangents = cumsum(c(0,diffs))
 plot(tangents)
 lines(tangents,col="blue")
 ```
@@ -111,42 +112,76 @@ And they still fit the shape
 plot(x,y,col="black")
 lines(c(x,x[1]),c(y,y[1]),col="blue")
 for(i in 1:nPoints){
-dtx = cos(tangents[i])
-dty = sin(tangents[i])
-lines(c(x[i] - dtx,x[i]+dtx),y=c(y[i] - dty,y[i]+dty),col="purple")
+  dtx = cos(tangents[i])
+  dty = sin(tangents[i])
+  lines(c(x[i] - dtx,x[i]+dtx),y=c(y[i] - dty,y[i]+dty),col="purple")
 }
 ```
 
-At this point we *could* resample. But it's not necessary because modern
-computers can calculate FFTs on any sized array. The only reason we may now
-need to do it, is to artificially increase the nyquist frequency.
-
-First we reset the curve to start from 0.
-Then we find the difference between the sampled tangents and the uni circle. 
+At this point we resample. This increases the nyquist frequency, can force 
+the number of samples to be a power of two, ensures that the spaces between
+samples are even.
 
 ```{r}
-diffs = diff(tangents)
+deli = sapply(1:nPoints, function(i) {
+  inext = i + 1
+  inext = ifelse(inext > nPoints, inext- nPoints, inext) 
 
-shortestAngle = function(theta){
-  if(theta >= 2*pi){
-    theta = theta %% (2*pi)
-  } else if(theta <= -2*pi){
-    theta = theta  %% (-2*pi)
-  }
-  if(theta > pi){
-    return(theta - 2*pi)
-  }else if(theta < -pi){
-    return(2*pi + theta)
+  tryCatch(solveDeli(x[inext] - x[i], y[inext] - y[i], tangents[i], tangents[inext]), error =
+          function(e){ 
+            print(e)
+            stop(paste(e,"\niter",i, inext))
+          }
+  )
+})
+
+ds = sapply(1:nPoints, function(i) {
+  inext = i + 1
+  inext = ifelse(inext > nPoints, inext- nPoints, inext) 
+
+  tryCatch(solveDs(x[inext] - x[i], deli[i], tangents[i], tangents[inext]), error =
+          function(e){ 
+            print(e)
+            stop(paste(e, "\niter",i, inext))
+          }
+  )
+})
+
+ds = abs(ds)
+
+si = cumsum(c(0,ds))
+
+samples = sapply(seq(0,si[length(si)],length = 1024), function(s){
+  i = which(si < s)
+  if(length(i)==0){
+    i = 1
   }else{
-    return(theta)
+    i = max(i)
   }
-}
 
-diffs = sapply(diffs, shortestAngle)
+  inext = i + 1
+  sinext = ifelse(inext > length(si), inext-length(si), inext)
+  tinext = ifelse(inext > length(tangents), inext-length(tangents), inext)
 
-samples = cumsum(c(0,diffs))
+  computeSpline(s, si[i], si[sinext], tangents[i], tangents[tinext], deli[i])
 
-samples= sapply(1:length(samples), function(i) samples[i] - (2*pi/nPoints)*(i-1)) 
+})
+```
+
+We can now plot the resampled tangents and curve to make sure that it looks the same as the
+original. Note, however, that the new curve does not preserve the size of the
+original.
+
+```{r}
+plot(samples)
+with(tangentsToXY(samples), plot(x, y))
+```
+
+We remove the effect of the unit circle (which is the upslope), as this
+method is about the curve that is not accounted for by a unit circle.
+
+```{r}
+samples= sapply(1:length(samples), function(i) samples[i] - (2*pi/length(samples))*(i-1)) 
 ```
 
 This gives us what looks now like a standard signal

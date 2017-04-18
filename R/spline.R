@@ -119,6 +119,7 @@ resampleTangents <- function(x,y,tangents,length.out=1024){
 #' @param angles An ordered vector of angles (in radians)
 #' @return a vector of angles where the adjacent angles are as close to each
 #'  other in magnitude as possible
+#' @export
 sequenceAngles <- function(angles){
   Reduce(function(soFar, angle){
     if(length(soFar) == 0) { 
@@ -241,7 +242,7 @@ computeSpline <- function(s, si, sj, thetai, thetaj, deli){
 #' @return The tangent to the spline at distance s along the spline
 #' @export
 computeSplineT <- function(t, thetai, thetaj, deli){
-    if(abs(thetai - thetaj) > pi){
+  if(abs(thetai - thetaj) > pi){
     #E.g. 6.2 & 0.2 so the linear interpolation will be going the long way round
     if(thetai < thetaj){
       thetai = thetai + 2*pi
@@ -295,9 +296,17 @@ falsePositionMethod <- function(f, x1, x2, maxIter, targetError){
       if(abs(fx1) < targetError) return(guesses[1])
       fx2 = f(guesses[2])
       xNext = (guesses[1]*fx2 - guesses[2]*fx1) / (fx2 - fx1)
-      return(c(xNext,guesses[1]))
+      if(is.nan(xNext)){
+           stop(paste("iter:",iter,"- xNext is NaN, f(x1): f(",guesses[1],") =",fx1,
+                      "f(x2): f(",guesses[2]),") =",fx2)
+      }
+      if(xNext == guesses[2]) {
+        print(paste("Adjusting on iter:",iter))
+        xNext = xNext*0.99  
+      }
+      return(c(guesses[2],xNext))
     }, 1:maxIter, c(x1,x2));
-  x = x[1]
+  x = x[2]
   return(ifelse(abs(f(x)) <= targetError, x, NA))  
 }
 
@@ -328,13 +337,19 @@ simpsonsRuleCell <- function(f, a, b){
 #'
 #' @export
 solveDeli <- function(dx, dy, thetai, thetaj) {
-  deli = secantMethod(function(deli){
+  deli = optimise(function(deli){
 
      xInt = simpsonsRule(function(x) {cos(computeSplineT(x, thetai, thetaj, deli))},0,1,100)
      yInt = simpsonsRule(function(x) {sin(computeSplineT(x, thetai, thetaj, deli))},0,1,100)
-
-     (xInt / yInt) - (dx / dy)
-   }, 0.1, 0.2, 1000, 1e-4)
+     if(is.nan(xInt)){
+       stop(paste("xInt is NaN for deli:",deli))
+     }
+     if(is.nan(yInt)){
+       stop(paste("yInt is NaN for deli: ",deli))
+     }
+     log(abs((xInt / yInt) - (dx / dy)) + 1)
+   }, interval=c(-2*pi,2*pi), maximum=FALSE)
+  return (deli)
 }
 
 #' Find the delta s values along the spline
