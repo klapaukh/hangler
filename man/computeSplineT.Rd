@@ -7,19 +7,13 @@
 computeSplineT(t, thetai, thetaj, deli)
 }
 \arguments{
+\item{t}{The arc distance along the spline to compute the tangent at}
+
 \item{thetai}{The tangent to the curve at distance si.}
 
 \item{thetaj}{The tangent to the curve at distance sj.}
 
 \item{deli}{The uncircleness of the spline between si and sj}
-
-\item{s}{The arc distance along the spline to compute the tangent at}
-
-\item{si}{The arc distance at point measured point i. 
-si < s and si > sk for all other sk < s.}
-
-\item{sj}{The arc distance at the point after i.
-sj > s and sj < sh for all other sh > s.}
 }
 \value{
 The tangent to the spline at distance s along the spline

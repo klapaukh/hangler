@@ -231,11 +231,7 @@ computeSpline <- function(s, si, sj, thetai, thetaj, deli){
 
 #' Compute the value of the tangent angle spline at s.
 #'
-#' @param s The arc distance along the spline to compute the tangent at
-#' @param si The arc distance at point measured point i. 
-#'            si < s and si > sk for all other sk < s.
-#' @param  sj The arc distance at the point after i.
-#'            sj > s and sj < sh for all other sh > s.
+#' @param t The arc distance along the spline to compute the tangent at
 #' @param thetai The tangent to the curve at distance si.
 #' @param thetaj The tangent to the curve at distance sj.
 #' @param deli The uncircleness of the spline between si and sj
@@ -337,18 +333,18 @@ simpsonsRuleCell <- function(f, a, b){
 #'
 #' @export
 solveDeli <- function(dx, dy, thetai, thetaj) {
-  deli = optimise(function(deli){
+  deli = secantMethod(function(deli){
 
-     xInt = simpsonsRule(function(x) {cos(computeSplineT(x, thetai, thetaj, deli))},0,1,100)
-     yInt = simpsonsRule(function(x) {sin(computeSplineT(x, thetai, thetaj, deli))},0,1,100)
-     if(is.nan(xInt)){
-       stop(paste("xInt is NaN for deli:",deli))
+     cosInt = simpsonsRule(function(x) {cos(computeSplineT(x, thetai, thetaj, deli))},0,1,100)
+     sinInt = simpsonsRule(function(x) {sin(computeSplineT(x, thetai, thetaj, deli))},0,1,100)
+     if(!is.finite(cosInt)){
+       stop(paste("cosInt is not finite for deli:",deli))
      }
-     if(is.nan(yInt)){
-       stop(paste("yInt is NaN for deli: ",deli))
+     if(!is.finite(sinInt)){
+       stop(paste("sinInt is not finite for deli: ",deli))
      }
-     log(abs((xInt / yInt) - (dx / dy)) + 1)
-   }, interval=c(-2*pi,2*pi), maximum=FALSE)
+     return((dy * cosInt) - (dx * sinInt))
+   }, -2*abs(thetai-thetaj), 2*abs(thetai-thetaj), maxIter = 1000, targetError = 1e-10 )
   return (deli)
 }
 

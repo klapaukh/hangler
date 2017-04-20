@@ -123,10 +123,11 @@ estimate the zero value for:
 
 $$  
 f(\Delta_i) = 
-     \frac
-     {\int_0^1 \cos\left(\theta_i(1-t) + \theta_{i+1}t + \frac{1}{2}\Delta_i(1-t)t\right) dt}
-     {\int_0^1 \sin\left(\theta_i(1-t) + \theta_{i+1}t + \frac{1}{2}\Delta_i(1-t)t\right) dt}
-     - \frac{x_{i+1} - x_i}{y_{i+1} - y_i} = 0
+     (y_{i+1} - y_i) *
+     \int_0^1 \cos\left(\theta_i(1-t) + \theta_{i+1}t + \frac{1}{2}\Delta_i(1-t)t\right) dt
+     -
+     (x_{i+1} - x_i) * 
+     \int_0^1 \sin\left(\theta_i(1-t) + \theta_{i+1}t + \frac{1}{2}\Delta_i(1-t)t\right) dt
 $$
 
 
@@ -136,6 +137,13 @@ $\theta$ values are used in the equation there must not be any wrapping around
 which can come from angle measurements. E.g. the pair of $\theta$s, 0 and 6.1,
 would cause problems. They should instead be either (0 and -0.183) or (6.283 and
 6.1).
+
+We can also estimate a sensible set of initial bounds for our guess of $\Delta_i$. 
+We can do this by making an assumption about what values we expect $\theta(t)$ 
+to take. Essentially we assume that the outputs of the spline are bounded by the 
+boundary values. This gives us a lower bound of $-2*|\theta_i-\theta_j|$ and an 
+upper bound of $2*|\theta_i-\theta_j|$. Note that we are not sure of these assumptions,
+so we do not use a bounded search algorithm.
 
 #### Computing $s_{i+1} - s_i$
 

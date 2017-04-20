@@ -25,7 +25,7 @@ theta = seq(0,2*pi, 0.1)
 
 radius = 6
 
-wiggle = 4
+wiggle = 6
 
 x = (sin(theta*wiggle) + radius) * cos(theta)
 y = (sin(theta*wiggle) + radius) * sin(theta)
@@ -92,7 +92,7 @@ for(i in 1:nPoints){
 This is because you can have the same angle turning left / right. So we need
 to make them not so much all the same direction, but rather all as close to the
 previous one as they can be. Note that angles do not need to be within 
-[0,2$\pi$]. We also shift them to start at 0.
+[0,2$\pi$]. 
 
 
 
@@ -101,7 +101,7 @@ Now we can look at the fixed tangents
 ```{r}
 tangents = sequenceAngles(tangents)
 diffs = diff(tangents)
-tangents = cumsum(c(0,diffs))
+tangents = cumsum(c(tangents[1],diffs))
 plot(tangents)
 lines(tangents,col="blue")
 ```
