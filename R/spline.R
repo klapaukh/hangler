@@ -161,6 +161,9 @@ boundAngle <- function(theta){
 #' Finds the center of a circle given three points
 #' Equations taken from http://www.ambrsoft.com/TrigoCalc/Circle3D.htm
 #' 
+#' Sometimes this doesn't work because the circle has infinite size. 
+#' In that case make a up center that will give the correct angle.
+#'
 #' @param points that make up the three points on the circumference
 #' @return a vector [x,y] that is the center of the circle 
 #' @export
@@ -181,6 +184,23 @@ findCenter <- function(x1, y1, x2, y2, x3, y3){
   x = (-B) / (2 * A)
   y = (-C) / (2 * A)
 
+  if(is.finite(x) & is.finite(y)){
+    return(c(x,y))
+  }
+
+  #make a unit circle with the straight line tangent
+  tangentX = x3 - x1
+  tangentY = y3 - y1
+
+  #Now rotate it by 90 degrees
+  temp = tangentX
+  tangentX = tangentY
+  tangentY = -temp
+
+  #Add it back to the middle one to get the circle center
+  x = x2 + tangentX
+  y = y2 + tangentY
+  
   return(c(x,y))
 }
 
@@ -302,10 +322,48 @@ falsePositionMethod <- function(f, x1, x2, maxIter, targetError){
       }
       return(c(guesses[2],xNext))
     }, 1:maxIter, c(x1,x2));
-  x = x[2]
+  x = x[length(x)]
   return(ifelse(abs(f(x)) <= targetError, x, NA))  
 }
 
+
+#' Newton-Raphson root finding
+#'
+#' This version of Newton-Raphson has been modified to not move more than
+#' 1 unit at a time (because the shallow bits at the top of the curve are 
+#' liable to vastly estimate distance), and to not move to a place that is
+#' a worse solution than the current (instead it bisects back until it 
+#' finds such a place.
+#'
+newtonRaphsonMethod <- function(f, guess=0, maxIter=1000, targetError=1e-6) {
+  derivativeDistance = 1e-6
+  x = Reduce(function(guess, iter){
+    x0  = guess[1]
+    fx0 = guess[2] # Note that fx0 is f(x0)
+    if(abs(fx0) < targetError) { 
+      return(c(x0,fx0))
+    }
+    fx0e = f(x0 + derivativeDistance) # f(x0 + epsilon)
+    dfx0 = (fx0e - fx0) / derivativeDistance # f'(x0)
+    shift = fx0 / dfx0
+    if(abs(shift) > 1){
+      shift = sign(shift)
+    }  else if(shift == 0) {
+      xNew = x0 - sign(x0) * derivativeDistance
+      fxNew = f(xNew)
+      return (c(xNew, fxNew))
+    }
+    xNew = x0 - shift
+    fNew = f(xNew)
+    while(abs(fNew) > abs(fx0)) {
+      shift = shift / 2
+      xNew = x0 - shift
+      fNew = f(xNew)
+    }
+    return (c(xNew,fNew))
+  } , 1:maxIter, c(guess, f(guess)));
+  return(ifelse(abs(x[2]) <= targetError, x[1], NA)) 
+}
 
 #' Numerical integration using Simpson's rule
 #'
@@ -332,11 +390,11 @@ simpsonsRuleCell <- function(f, a, b){
 #' Find the delta i values along the spiline
 #'
 #' @export
-solveDeli <- function(dx, dy, thetai, thetaj) {
-  deli = secantMethod(function(deli){
+solveDeli <- function(dx, dy, thetai, thetaj, maxIter=1000, targetError = 1e-10, integralIter=100) {
+  deli = newtonRaphsonMethod(function(deli){
 
-     cosInt = simpsonsRule(function(x) {cos(computeSplineT(x, thetai, thetaj, deli))},0,1,100)
-     sinInt = simpsonsRule(function(x) {sin(computeSplineT(x, thetai, thetaj, deli))},0,1,100)
+     cosInt = simpsonsRule(function(x) {cos(computeSplineT(x, thetai, thetaj, deli))},0,1,integralIter)
+     sinInt = simpsonsRule(function(x) {sin(computeSplineT(x, thetai, thetaj, deli))},0,1,integralIter)
      if(!is.finite(cosInt)){
        stop(paste("cosInt is not finite for deli:",deli))
      }
@@ -344,7 +402,7 @@ solveDeli <- function(dx, dy, thetai, thetaj) {
        stop(paste("sinInt is not finite for deli: ",deli))
      }
      return((dy * cosInt) - (dx * sinInt))
-   }, -2*abs(thetai-thetaj), 2*abs(thetai-thetaj), maxIter = 1000, targetError = 1e-10 )
+   }, 0, maxIter = maxIter, targetError = targetError )
   return (deli)
 }
 
@@ -355,4 +413,21 @@ solveDs <- function(dx, deli, thetai, thetaj){
   dx / simpsonsRule(function(x) { cos(computeSplineT(x, thetai, thetaj, deli)) },0,1,100)
 }
 
+#' Filter a digitised curve to reduce noise
+#'
+#' @param points Points to filter (e.g. the x coordinates)
+#' @param outputLength The number of resampled tangent points that will be fed into the FFT
+#' @param iterations The number of smoothing iterations to do
+#' @export
+digitisationFilter <- function(points, 
+                               outputLength, 
+                               iterations = ceiling(2*((length(points) / outputLength)**2))){
+  Reduce(function(input, iteration) {
+    n          = length(points)
+    rightShift = c(input[n],input[-n])
+    leftShift  = c(input[-1],input[1])
+    newPoints  = 0.25*rightShift + 0.5* input + 0.25 * leftShift
+    return(newPoints)
+  }, 1:iterations, points)
+}
 # vim: expandtab sw=2 ts=2  

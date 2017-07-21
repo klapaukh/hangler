@@ -68,6 +68,16 @@ test_that("findCenter radii are the same", {
   expect_equal(distance(p3[1], p3[2], x[7], y[7]), distance(p3[1], p3[2], x[9], y[9]))
  })
 
+test_that("find center is sensible on a straight line", {
+  x = 10 
+  y = 10
+
+  p = findCenter(5, 5, 10, 10, 15, 15)
+  theta = findTangentAngle(p[1],p[2], x, y)
+
+  expect_equal(theta, pi/4)
+ })
+
 test_that("findTangentAngle solutions make sense", {
   theta = seq(0,2*pi, 0.01)
   tangent = theta - (pi / 2)
