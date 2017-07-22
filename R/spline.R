@@ -42,10 +42,6 @@ computeTangents <- function(x,y){
 
   samples = cumsum(c(0,diffs))
 
-  # Subtract the effect of the unit circle 
-  # (linearly increasing tangent angle from 0 to 2pi)
-  samples= sapply(1:length(samples), function(i) samples[i] - (2*pi/nPoints)*(i-1)) 
-
   return(samples)
 }
 
@@ -390,7 +386,7 @@ simpsonsRuleCell <- function(f, a, b){
 #' Find the delta i values along the spiline
 #'
 #' @export
-solveDeli <- function(dx, dy, thetai, thetaj, maxIter=1000, targetError = 1e-10, integralIter=100) {
+solveDeli <- function(dx, dy, thetai, thetaj, maxIter=1000, targetError = 1e-10, integralIter=5) {
   deli = newtonRaphsonMethod(function(deli){
 
      cosInt = simpsonsRule(function(x) {cos(computeSplineT(x, thetai, thetaj, deli))},0,1,integralIter)
@@ -409,8 +405,8 @@ solveDeli <- function(dx, dy, thetai, thetaj, maxIter=1000, targetError = 1e-10,
 #' Find the delta s values along the spline
 #'
 #' @export
-solveDs <- function(dx, deli, thetai, thetaj){
-  dx / simpsonsRule(function(x) { cos(computeSplineT(x, thetai, thetaj, deli)) },0,1,100)
+solveDs <- function(dx, deli, thetai, thetaj, integralIter=5){
+  dx / simpsonsRule(function(x) { cos(computeSplineT(x, thetai, thetaj, deli)) },0,1,integralIter)
 }
 
 #' Filter a digitised curve to reduce noise
@@ -430,4 +426,17 @@ digitisationFilter <- function(points,
     return(newPoints)
   }, 1:iterations, points)
 }
-# vim: expandtab sw=2 ts=2  
+
+#' Remove the circle effect from the tangents
+#'
+#' Removes the effect of the circle on the tangents. This basically 
+#' Turns the tangents into the deviations from the circle, which 
+#' can be run through an FFT
+#' @param tangents The tangents to flatting (These should run from 0 to 2*pi)
+#' @return The tangents with the circle component removed
+flattenTangents <- function(tangents) {
+  circle = seq(0, 2*pi, length.out=length(tangents))
+  return(tangents - circle)
+}
+
+# vim: expandtab sw=2 ts=2 tw=80  
