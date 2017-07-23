@@ -55,7 +55,9 @@ computeTangents <- function(x,y){
 #' @param tangents A vector of tangents
 #' @param length.out The length of the output array
 #' @return A resampled tangent vector with length length.out
-resampleTangents <- function(x,y,tangents,length.out=1024){
+resampleTangents <- function(x,y,tangents,length.out=1024, 
+                             integral.iter=5, solver.error= 1e-10,
+                             solver.max.iter=1000){
   nPoints = length(tangents)
 
   # Try approximate the deli values for the spline
@@ -63,7 +65,9 @@ resampleTangents <- function(x,y,tangents,length.out=1024){
     inext = i + 1
     inext = ifelse(inext > nPoints, inext - nPoints, inext) 
   
-    tryCatch(solveDeli(x[inext] - x[i], y[inext] - y[i], tangents[i], tangents[inext]), 
+    tryCatch(solveDeli(x[inext] - x[i], y[inext] - y[i], tangents[i], tangents[inext],
+                       maxIter=solver.max.iter, targetError = solver.error, 
+                       integralIter=integral.iter), 
       error = function(e){ 
                 stop(paste(e,"\nFailed to compute deli for spline between",i, 
                            "and",inext))
@@ -76,7 +80,8 @@ resampleTangents <- function(x,y,tangents,length.out=1024){
     inext = i + 1
     inext = ifelse(inext > nPoints, inext - nPoints, inext) 
  
-    tryCatch(solveDs(x[inext] - x[i], deli[i], tangents[i], tangents[inext]), 
+    tryCatch(solveDs(x[inext] - x[i], deli[i], tangents[i], tangents[inext],
+                     integralIter = integral.iter), 
       error = function(e){ 
                 stop(paste(e, "\nFailed to compute ds for spline between",i,
                           "and", inext))

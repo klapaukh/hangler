@@ -31,9 +31,9 @@ The algorith is a pipeline as follows:
    1. Remove duplicated xy point that closes the curve if present
    1. Smooth the input coordinates 
    1. Estimate tangents to each coordinate
+   1. Normalise the tangents starting position to 0
    1. Compute a spline to model the tangents of the closed curve
    1. Resample the spline to get 1024 (usually) points
-   1. Normalise the spline starting position to 0
    1. Subtract the tangents of the unit circle from the spline
    1. Normalise the starting position and orientation by either:
       * Normalisation by harmonics

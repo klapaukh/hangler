@@ -9,6 +9,10 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
+```{r echo=FALSE}
+knitr::opts_chunk$set(fig.width=5, fig.height=5) 
+```
+
 We are going to run through an example of using hangler to analyse a simple
 closed curve shape. 
 
@@ -21,19 +25,17 @@ library(hangler)
 ```
 
 ```{r}
-theta = seq(0,2*pi, 0.001)
+theta = seq(0,2*pi, 0.01)
 
 radius = 6
 
-wiggle1 = 7
-wiggle2 = 3
+wiggle = 7
 
-x = (cos(3*theta*wiggle2) + sin(theta*wiggle1) + radius) * cos(theta)
-y = (cos(3*theta*wiggle2) + sin(theta*wiggle1) + radius) * sin(theta)
+x = (sin(theta*wiggle) + radius) * cos(theta)
+y = (sin(theta*wiggle) + radius) * sin(theta)
 
 rm(theta)
-rm(wiggle1)
-rm(wiggle2)
+rm(wiggle)
 rm(radius)
 ```
 
@@ -58,31 +60,59 @@ plot(tangents)
 lines(tangents,col="blue")
 ```
 
-We can plot them on the original shape to see that they make sense.
+We can turn them back into a shape and see that they give the original.
 
 ```{r}
-plot(x,y,col="black")
-lines(c(x,x[1]),c(y,y[1]),col="blue")
-for(i in 1:length(x)){
-  dtx = cos(tangents[i])
-  dty = sin(tangents[i])
-  lines(c(x[i] - dtx,x[i]+dtx),y=c(y[i] - dty,y[i]+dty),col="purple")
-}
+with(tangentsToXY(tangents), {
+   plot(x, y,col=rainbow(length(tangents))); 
+   lines(x,y)
+})
 ```
 
-At this point we *could* resample. But that bit doesn't always work yet. 
-
-We can now run the FFT over the [resampled] spline. 
+At this point we need to resample the tangent curve. 
+This is because FFT requires evenly spaced points, but we cannot be certain
+that our digitisation / landmark capture is even along the curve length. 
+We will resample the default number of points. 
 
 ```{r}
-coeffs = fft(tangents)/length(tangents)
+newTangents = resampleTangents(x,y, tangents)
 ```
+
+We can now plot our new tangents to make sure they are the same as the old ones.
+
+```{r}
+plot(newTangents)
+lines(newTangents,col="blue")
+```
+
+That done, we now need to remove the normal shift associated with a unit circle. 
+Hangle characterises shape by deviation from unit circle rather than directly.
+
+```{r}
+newTangents = flattenTangents(newTangents)
+```
+
+Now we can plot the results to make sure they look sensible (like a 
+wave). 
+
+
+```{r}
+plot(newTangents)
+lines(newTangents,col="blue")
+```
+
+From this point one we can get our coefficients by using R's inbuilt FFT. 
+
+```{r}
+coeffs = fft(newTangents)/length(newTangents)
+```
+
 
 We start by taking only the first 30 and now trying to reconstruct the original
 curve. 
 
 ```{r}
-coeffs = coeffs[1:300]
+coeffs = coeffs[1:30]
 ```
 
 
@@ -95,8 +125,23 @@ backCoeffs = fftoToCoeffs(coeffs)
 Now we can reconstruct the original curve. 
 
 ```{r}
-reconstructedTangents = sapply(seq(0,2*pi,length.out=length(tangents)),
+reconstructedTangents = sapply(seq(0,2*pi,length.out=length(newTangents)),
       function(s) getTangentAtS(s,backCoeffs))
+```
 
-with(tangentsToXY(reconstructedTangents), {plot(x, y,col=rainbow(256)); lines(x,y)})
+We can now look at the reconstructed tangents and compare them to the originals
+
+
+```{r}
+plot(reconstructedTangents)
+lines(reconstructedTangents,col="blue")
+```
+
+And now reconstruct the curve
+
+```{r}
+with(tangentsToXY(reconstructedTangents), {
+   plot(x, y,col=rainbow(length(newTangents))); 
+   lines(x,y)
+})
 ```
